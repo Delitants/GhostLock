@@ -2,3 +2,4 @@ build/
 dist/
 *.o
 ghostlock_root
+kara/out/

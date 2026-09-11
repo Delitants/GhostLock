@@ -1,0 +1,37 @@
+name: Kara target
+
+on:
+  push:
+    branches:
+      - kara-PS7713-5443
+  pull_request:
+    paths:
+      - "kara/**"
+      - ".github/workflows/kara.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    container: ubuntu:25.10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host and ARM compilers
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential file gcc-arm-linux-gnueabihf
+      - name: Run host tests
+        run: ./kara/tests/run-host-tests.sh
+      - name: Reproduce the live-tested ARM artifact
+        env:
+          REQUIRE_LIVE_TESTED_HASH: "1"
+        run: ./kara/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kara-ghostlock-PS7713-5443
+          path: kara/out/kara-ghostlock-PS7713-5443.arm
+          if-no-files-found: error

@@ -81,6 +81,46 @@ static void test_live_confirmation_and_command_limits(void) {
     assert(!kara_command_length_valid(65537));
 }
 
+static void test_newer_build_override_is_exact_and_strictly_newer(void) {
+    assert(kara_newer_build_request_valid("0035334210437", "0035334210437"));
+    assert(kara_newer_build_request_valid("1035334210436", "1035334210436"));
+    assert(!kara_newer_build_request_valid("0035334210436", "0035334210436"));
+    assert(!kara_newer_build_request_valid("0035334210435", "0035334210435"));
+    assert(!kara_newer_build_request_valid("0035334210437", "0035334210438"));
+    assert(!kara_newer_build_request_valid("0035334210437", "not-a-build"));
+    assert(!kara_newer_build_request_valid("0035334210437", "00353342104370"));
+    assert(!kara_newer_build_request_valid(NULL, "0035334210437"));
+}
+
+static void test_experimental_confirmation_and_postroot_policy(void) {
+    assert(kara_experimental_confirmation_valid(
+        "RUN-KARA-EXPERIMENTAL-NEWER-I-ACCEPT-WATCHDOG-REBOOT"));
+    assert(!kara_experimental_confirmation_valid(
+        "RUN-KARA-PS7713-GHOSTLOCK-V2"));
+    assert(kara_should_contain_ota(0));
+    assert(!kara_should_contain_ota(1));
+}
+
+static void test_experimental_invocation_requires_build_and_long_token(void) {
+    struct kara_invocation invocation;
+    char *probe[] = {"kara", "--probe-newer", "0035334210437"};
+    assert(kara_parse_invocation(3, probe, &invocation));
+    assert(invocation.mode == KARA_MODE_PROBE_NEWER);
+    assert(strcmp(invocation.requested_build, "0035334210437") == 0);
+
+    char *live[] = {
+        "kara", "--live-newer", "0035334210437",
+        "RUN-KARA-EXPERIMENTAL-NEWER-I-ACCEPT-WATCHDOG-REBOOT",
+    };
+    assert(kara_parse_invocation(4, live, &invocation));
+    assert(invocation.mode == KARA_MODE_LIVE_NEWER);
+
+    char *baseline[] = {"kara", "--probe-newer", "0035334210436"};
+    assert(!kara_parse_invocation(3, baseline, &invocation));
+    live[3] = "RUN-KARA-PS7713-GHOSTLOCK-V2";
+    assert(!kara_parse_invocation(4, live, &invocation));
+}
+
 static void test_live_state_machine_rejects_skips_and_rewinds(void) {
     enum kara_phase phase = KARA_PHASE_NEW;
     assert(!kara_phase_step(&phase, KARA_PHASE_FDS_READY));
@@ -148,6 +188,9 @@ int main(void) {
     test_fd_plan_matches_hand_derived_bits();
     test_preflight_requires_every_gate();
     test_live_confirmation_and_command_limits();
+    test_newer_build_override_is_exact_and_strictly_newer();
+    test_experimental_confirmation_and_postroot_policy();
+    test_experimental_invocation_requires_build_and_long_token();
     test_live_state_machine_rejects_skips_and_rewinds();
     test_tcp_copy_requires_exact_post_copy_error();
     test_reclaim_confidence_rejects_weak_solutions();

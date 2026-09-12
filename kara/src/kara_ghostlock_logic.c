@@ -61,6 +61,48 @@ int kara_live_confirmation_valid(const char *token) {
     return token && strcmp(token, KARA_LIVE_CONFIRMATION) == 0;
 }
 
+int kara_newer_build_request_valid(const char *actual, const char *requested) {
+    size_t length = strlen(KARA_BASELINE_BUILD);
+    if (!actual || !requested || strlen(actual) != length ||
+        strlen(requested) != length || strcmp(actual, requested) != 0)
+        return 0;
+    for (size_t index = 0; index < length; ++index) {
+        if (requested[index] < '0' || requested[index] > '9')
+            return 0;
+    }
+    return strcmp(requested, KARA_BASELINE_BUILD) > 0;
+}
+
+int kara_experimental_confirmation_valid(const char *token) {
+    return token && strcmp(token, KARA_EXPERIMENTAL_CONFIRMATION) == 0;
+}
+
+int kara_should_contain_ota(int experimental_newer) {
+    return !experimental_newer;
+}
+
+int kara_parse_invocation(int argc, char **argv,
+                          struct kara_invocation *invocation) {
+    if (!invocation)
+        return 0;
+    invocation->mode = KARA_MODE_INVALID;
+    invocation->requested_build = NULL;
+    if (argc == 3 && strcmp(argv[1], "--probe-newer") == 0 &&
+        kara_newer_build_request_valid(argv[2], argv[2])) {
+        invocation->mode = KARA_MODE_PROBE_NEWER;
+        invocation->requested_build = argv[2];
+        return 1;
+    }
+    if (argc == 4 && strcmp(argv[1], "--live-newer") == 0 &&
+        kara_newer_build_request_valid(argv[2], argv[2]) &&
+        kara_experimental_confirmation_valid(argv[3])) {
+        invocation->mode = KARA_MODE_LIVE_NEWER;
+        invocation->requested_build = argv[2];
+        return 1;
+    }
+    return 0;
+}
+
 int kara_command_length_valid(size_t length) {
     return length > 0 && length <= KARA_MAX_COMMAND;
 }

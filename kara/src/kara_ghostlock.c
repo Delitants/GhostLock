@@ -59,6 +59,9 @@ static int g_plan_fds[64];
 static size_t g_plan_fd_count;
 static int g_pty_master = -1;
 static int g_pty_slave = -1;
+static int g_experimental_newer;
+static const char *g_requested_build;
+static char g_observed_build[96] = KARA_BASELINE_BUILD;
 
 static atomic_int g_waiter_tid;
 static atomic_int g_waiter_nice;
@@ -186,6 +189,7 @@ static uint32_t observe_preflight(struct kara_preflight *observed) {
     (void)get_property("ro.product.device", device, sizeof(device));
     (void)get_property("ro.product.model", model, sizeof(model));
     (void)get_property("ro.build.version.incremental", build, sizeof(build));
+    snprintf(g_observed_build, sizeof(g_observed_build), "%s", build);
     (void)read_text_file("/sys/fs/selinux/enforce", enforce, sizeof(enforce));
     (void)get_cec_guard(cec, sizeof(cec));
 
@@ -195,7 +199,10 @@ static uint32_t observe_preflight(struct kara_preflight *observed) {
     observed->kernel_exact = have_uname && strcmp(uts.release, "4.14.87+") == 0;
     observed->device_kara = strcmp(device, "kara") == 0;
     observed->model_aftka = strcmp(model, "AFTKA") == 0;
-    observed->build_exact = strcmp(build, "0035334210436") == 0;
+    observed->build_exact = strcmp(build, KARA_BASELINE_BUILD) == 0 ||
+                            (g_experimental_newer &&
+                             kara_newer_build_request_valid(
+                                 build, g_requested_build));
     observed->uid_shell = getuid() == 2000 && geteuid() == 2000;
     observed->selinux_enforcing = strcmp(enforce, "1") == 0;
     observed->cec_standby_blocked = strcmp(cec, "1") == 0;
@@ -601,8 +608,10 @@ static int write_root_proof(void) {
     char enforce[16] = "?";
     (void)read_text_file("/proc/self/attr/current", context, sizeof(context));
     (void)read_text_file("/sys/fs/selinux/enforce", enforce, sizeof(enforce));
-    dprintf(fd, "ROOTED uid=%u euid=%u context=%s enforce=%s build=0035334210436\n",
-            (unsigned)getuid(), (unsigned)geteuid(), context, enforce);
+    dprintf(fd, "ROOTED uid=%u euid=%u context=%s enforce=%s build=%s mode=%s\n",
+            (unsigned)getuid(), (unsigned)geteuid(), context, enforce,
+            g_observed_build,
+            g_experimental_newer ? "experimental-newer" : "exact");
     close(fd);
     chmod(KARA_ROOT_PROOF, 0644);
     return 1;

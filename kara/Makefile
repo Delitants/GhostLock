@@ -8,7 +8,7 @@ SRC := src/kara_ghostlock_v2.c \
 	src/kara_reclaim_stage.c \
 	src/kara_reclaim_layout.c \
 	src/kara_reclaim_readback.c
-OUT := out/kara-ghostlock-PS7713-5443.arm
+OUT := out/kara-ghostlock-experimental-newer.arm
 
 .PHONY: all clean host-tests
 

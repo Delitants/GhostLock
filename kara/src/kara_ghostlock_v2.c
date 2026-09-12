@@ -355,10 +355,14 @@ static int run_live_v2(void)
     if (!restore_ldisc_global())
         klog("WARNING: v2 retained fake ldisc globally; reclaim remains pinned");
 
-    if (!contain_ota()) {
-        klog("WARNING: v2 root succeeded but OTA containment did not fully verify; "
-             "retaining root daemon for manual repair");
-        root_command_daemon();
+    if (kara_should_contain_ota(g_experimental_newer)) {
+        if (!contain_ota()) {
+            klog("WARNING: v2 root succeeded but OTA containment did not fully verify; "
+                 "retaining root daemon for manual repair");
+            root_command_daemon();
+        }
+    } else {
+        klog("UNVALIDATED FIRMWARE: experimental root test skipped OTA containment");
     }
     require_phase(&phase, KARA_PHASE_OTA_CONTAINED);
     (void)write_root_proof();
@@ -373,12 +377,16 @@ static void usage_v2(const char *program)
             "usage:\n"
             "  %s --probe\n"
             "  %s --live %s\n"
+            "  %s --probe-newer NEWER_BUILD\n"
+            "  %s --live-newer NEWER_BUILD %s\n"
             "  %s --cmd 'command'\n",
-            program, program, KARA_V2_CONFIRMATION, program);
+            program, program, KARA_V2_CONFIRMATION, program, program,
+            KARA_EXPERIMENTAL_CONFIRMATION, program);
 }
 
 int main(int argc, char **argv)
 {
+    struct kara_invocation invocation;
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
     if (argc == 2 && !strcmp(argv[1], "--probe"))
@@ -391,6 +399,24 @@ int main(int argc, char **argv)
             return 2;
         }
         return run_live_v2();
+    }
+    if (kara_parse_invocation(argc, argv, &invocation)) {
+        g_experimental_newer = 1;
+        g_requested_build = invocation.requested_build;
+        if (invocation.mode == KARA_MODE_PROBE_NEWER) {
+            int result = run_probe_v2();
+            if (result == 0)
+                printf("KARA_EXPERIMENTAL_NEWER_PROBE=PASS build=%s\n",
+                       g_observed_build);
+            return result;
+        }
+        if (invocation.mode == KARA_MODE_LIVE_NEWER) {
+            fprintf(stderr,
+                    "UNVALIDATED FIRMWARE: entering one experimental live attempt "
+                    "for build %s\n",
+                    invocation.requested_build);
+            return run_live_v2();
+        }
     }
     usage_v2(argv[0]);
     return 2;

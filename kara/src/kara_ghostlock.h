@@ -6,6 +6,9 @@
 
 #define KARA_SELECT_WORDS 10u
 #define KARA_LIVE_CONFIRMATION "RUN-KARA-PS7713-GHOSTLOCK"
+#define KARA_BASELINE_BUILD "0035334210436"
+#define KARA_EXPERIMENTAL_CONFIRMATION \
+    "RUN-KARA-EXPERIMENTAL-NEWER-I-ACCEPT-WATCHDOG-REBOOT"
 #define KARA_MAX_COMMAND 65536u
 #define KARA_SCHED_BATCH 3u
 
@@ -65,6 +68,17 @@ struct kara_preflight {
     int cec_standby_blocked;
 };
 
+enum kara_mode {
+    KARA_MODE_INVALID = 0,
+    KARA_MODE_PROBE_NEWER,
+    KARA_MODE_LIVE_NEWER,
+};
+
+struct kara_invocation {
+    enum kara_mode mode;
+    const char *requested_build;
+};
+
 enum kara_phase {
     KARA_PHASE_NEW = 0,
     KARA_PHASE_PREFLIGHT_OK,
@@ -85,6 +99,11 @@ size_t kara_collect_read_fds(const struct kara_select_stamp *stamp,
                              int *fds, size_t capacity);
 uint32_t kara_preflight_missing(const struct kara_preflight *observed);
 int kara_live_confirmation_valid(const char *token);
+int kara_newer_build_request_valid(const char *actual, const char *requested);
+int kara_experimental_confirmation_valid(const char *token);
+int kara_should_contain_ota(int experimental_newer);
+int kara_parse_invocation(int argc, char **argv,
+                          struct kara_invocation *invocation);
 int kara_command_length_valid(size_t length);
 int kara_phase_step(enum kara_phase *phase, enum kara_phase next);
 int kara_tcp_mcast_copy_confirmed(int result, int saved_errno);

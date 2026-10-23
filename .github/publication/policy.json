@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "repository": "Delitants/GhostLock",
+  "baseline": "2752d2e5aef40c5007f23f36ce89ee29e1a6a4bc",
+  "public_docs": [],
+  "public_data": [],
+  "release_assets": [
+    "kara-ghostlock-*.arm"
+  ]
+}
